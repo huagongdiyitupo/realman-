@@ -5,7 +5,7 @@ from typing import Optional
 from mani_skill.utils.wrappers.record import RecordEpisode
 import tyro
 
-
+import lerobot_sim2real.my_env.RealmanGraspCubeEnv
 @dataclass
 class Args:
     env_id: str = "SO100GraspCube-v1"

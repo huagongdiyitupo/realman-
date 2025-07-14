@@ -1,0 +1,30 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+      {
+        "name": "Debug PPO Training",
+        "type": "python",
+        "request": "launch",
+        "program": "${workspaceFolder}/lerobot_sim2real/scripts/train_ppo_rgb.py",
+        "console": "integratedTerminal",
+        "args": [
+          "--env-id=RealmanGraspCube-v1",
+          "--env-kwargs-json-path=env_config.json",
+          "--ppo.seed=1",
+          "--ppo.num_envs=1024",
+          "--ppo.num-steps=16",
+          "--ppo.update_epochs=8",
+          "--ppo.num_minibatches=32",
+          "--ppo.total_timesteps=100000000",
+          "--ppo.gamma=0.9",
+          "--ppo.num_eval_envs=16",
+          "--ppo.num-eval-steps=64",
+          "--ppo.no-partial-reset",
+          "--ppo.exp-name=ppo-RealmanGraspCube-v1-rgb-1",
+          "--ppo.track",
+          "--ppo.wandb_project_name=REALMAN-ManiSkill"
+        ]
+      }
+    ]
+  }
+  

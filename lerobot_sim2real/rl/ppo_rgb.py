@@ -129,6 +129,7 @@ def layer_init(layer, std=np.sqrt(2), bias_const=0.0):
     torch.nn.init.constant_(layer.bias, bias_const)
     return layer
 
+# 处理复杂的字典观察空间
 class DictArray(object):
     def __init__(self, buffer_shape, element_space, data_dict=None, device=None):
         self.buffer_shape = buffer_shape
@@ -179,6 +180,7 @@ class DictArray(object):
         new_buffer_shape = next(iter(new_dict.values())).shape[:len(shape)]
         return DictArray(new_buffer_shape, None, data_dict=new_dict)
 
+# NatureCNN特征提取器
 class NatureCNN(nn.Module):
     def __init__(self, sample_obs):
         super().__init__()
@@ -214,6 +216,7 @@ class NatureCNN(nn.Module):
 
         # to easily figure out the dimensions after flattening, we pass a test tensor
         with torch.no_grad():
+            # permute 是 PyTorch 中用于 重新排列张量维度顺序 的函数。调整成符合cnn的输入
             n_flatten = cnn(sample_obs["rgb"].float().permute(0,3,1,2).cpu()).shape[1]
             fc = nn.Sequential(nn.Linear(n_flatten, feature_size), nn.ReLU())
         extractors["rgb"] = nn.Sequential(cnn, fc)
@@ -238,6 +241,7 @@ class NatureCNN(nn.Module):
             encoded_tensor_list.append(extractor(obs))
         return torch.cat(encoded_tensor_list, dim=1)
 
+# Agent网络
 class Agent(nn.Module):
     def __init__(self, envs, sample_obs):
         super().__init__()
@@ -381,6 +385,7 @@ def train(args: PPOArgs):
     start_time = time.time()
     next_obs, _ = envs.reset(seed=args.seed)
     eval_obs, _ = eval_envs.reset(seed=args.seed)
+    print(f"next_obs={next_obs} eval_obs={eval_obs}")
     next_done = torch.zeros(args.num_envs, device=device)
     print(f"####")
     print(f"args.num_iterations={args.num_iterations} args.num_envs={args.num_envs} args.num_eval_envs={args.num_eval_envs}")
@@ -393,11 +398,16 @@ def train(args: PPOArgs):
         agent.load_state_dict(torch.load(args.checkpoint))
 
     cumulative_times = defaultdict(float)
-
+    # 查看动作的取值范围和维度
+    print(envs.unwrapped.single_action_space)
+    print(envs.unwrapped.single_action_space.shape)
+    
     for iteration in range(1, args.num_iterations + 1):
         print(f"Epoch: {iteration}, global_step={global_step}")
         final_values = torch.zeros((args.num_steps, args.num_envs), device=device)
         agent.eval()
+        # 每隔 eval_freq 个 iteration，就进入评估逻辑
+        # 周期性地在验证环境上运行策略，评估当前策略的表现（success rate、reward 等）
         if iteration % args.eval_freq == 1:
             print("Evaluating")
             stime = time.perf_counter()
@@ -407,12 +417,15 @@ def train(args: PPOArgs):
             for _ in range(args.num_eval_steps):
                 with torch.no_grad():
                     eval_obs, eval_rew, eval_terminations, eval_truncations, eval_infos = eval_envs.step(agent.get_action(eval_obs, deterministic=True))
+                    # 收集 episode-level 指标，通过 mask 找出哪些 env 是 done=True
                     if "final_info" in eval_infos:
-                        mask = eval_infos["_final_info"]
+                        mask = eval_infos["_final_info"]# 标记哪些 env episode 完成了
+                        # 布尔张量（torch.BoolTensor） 上可以直接调用 .sum()，并且它会将 True 当作 1、False 当作 0 来计算。
                         num_episodes += mask.sum()
                         for k, v in eval_infos["final_info"]["episode"].items():
-                            eval_metrics[k].append(v)
+                            eval_metrics[k].append(v)# 保存每个 episode 的评价值
             print(f"Evaluated {args.num_eval_steps * args.num_eval_envs} steps resulting in {num_episodes} episodes")
+            # 把多个 tensor 堆叠成一个二维 tensor取均值
             for k, v in eval_metrics.items():
                 mean = torch.stack(v).float().mean()
                 if logger is not None:

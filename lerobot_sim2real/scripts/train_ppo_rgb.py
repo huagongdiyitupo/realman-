@@ -7,6 +7,7 @@ import tyro
 
 from lerobot_sim2real.rl.ppo_rgb import PPOArgs, train
 
+import lerobot_sim2real.my_env.RealmanGraspCubeEnv
 @dataclass
 class Args:
     env_id: str
